@@ -18,6 +18,8 @@ export default function EditProjectModal({ project }: { project: Project }) {
   const [sitemapUrl, setSitemapUrl] = useState(project.sitemap_url ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   function resetForm() {
@@ -25,6 +27,18 @@ export default function EditProjectModal({ project }: { project: Project }) {
     setDomain(project.domain);
     setSitemapUrl(project.sitemap_url ?? "");
     setError(null);
+    setConfirmDelete(false);
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setDeleting(false);
+      setError("Failed to delete project");
+      return;
+    }
+    router.push("/dashboard");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -144,6 +158,41 @@ export default function EditProjectModal({ project }: { project: Project }) {
                 </button>
               </div>
             </form>
+
+            <div className="mt-6 pt-5 border-t border-gray-100">
+              {!confirmDelete ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-sm text-red-600 hover:text-red-800"
+                >
+                  Delete project
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-700">
+                    Delete <strong>{project.name}</strong>? This will remove all pages and articles. This cannot be undone.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="flex-1 py-2 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {deleting ? "Deleting..." : "Yes, delete"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
