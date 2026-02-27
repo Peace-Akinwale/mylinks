@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "src/app/api/projects/[projectId]/crawl/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/articles/[articleId]/suggest/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
