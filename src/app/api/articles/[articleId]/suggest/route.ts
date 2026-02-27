@@ -3,7 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getSuggestions } from "@/lib/gemini";
 import type { InventoryPage } from "@/lib/gemini";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(
   _request: Request,
@@ -31,7 +31,7 @@ export async function POST(
     .select("url, title, h1, meta_description, page_type, priority")
     .eq("project_id", projectId)
     .order("priority", { ascending: false })
-    .limit(300);
+    .limit(75);
 
   if (!pages || pages.length === 0) {
     return NextResponse.json(
