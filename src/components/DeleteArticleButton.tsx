@@ -27,7 +27,7 @@ export default function DeleteArticleButton({
 
   if (confirming) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-gray-500">Delete this article?</span>
         <button
           onClick={handleDelete}

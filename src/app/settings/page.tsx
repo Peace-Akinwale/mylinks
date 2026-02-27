@@ -18,7 +18,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
+      <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center gap-3">
         <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900">
           Dashboard
         </Link>
@@ -26,12 +26,12 @@ export default async function SettingsPage() {
         <span className="text-sm font-medium text-gray-900">Settings</span>
       </nav>
 
-      <main className="max-w-2xl mx-auto px-6 py-10 space-y-6">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
 
         {/* Google Docs connection */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-wrap justify-between items-start gap-4">
             <div>
               <h2 className="font-semibold text-gray-900">Google Docs</h2>
               <p className="text-sm text-gray-500 mt-1">

@@ -63,7 +63,7 @@ export default function NewArticlePage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
+      <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex flex-wrap items-center gap-3">
         <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900">
           Dashboard
         </Link>
@@ -78,7 +78,7 @@ export default function NewArticlePage({
         <span className="text-sm font-medium text-gray-900">Add article</span>
       </nav>
 
-      <main className="max-w-2xl mx-auto px-6 py-10">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
         <h1 className="text-2xl font-bold text-gray-900 mb-8">Add article</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -128,7 +128,7 @@ export default function NewArticlePage({
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Paste your article content here..."
-                rows={16}
+                rows={10}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y font-mono"
               />
             ) : (

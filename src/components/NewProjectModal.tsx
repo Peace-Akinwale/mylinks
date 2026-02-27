@@ -12,15 +12,25 @@ export default function NewProjectModal() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  function normalizeDomain(input: string): string {
+    let d = input.trim();
+    d = d.replace(/^https?:\/\//, "");
+    d = d.replace(/^www\./, "");
+    d = d.replace(/\/+$/, "");
+    return d;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    const cleanDomain = normalizeDomain(domain);
+
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, domain, sitemap_url: sitemapUrl || null }),
+      body: JSON.stringify({ name, domain: cleanDomain, sitemap_url: sitemapUrl || null }),
     });
 
     const data = await res.json();
@@ -46,7 +56,11 @@ export default function NewProjectModal() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+          onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+        >
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               New project

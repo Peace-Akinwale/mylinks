@@ -37,7 +37,7 @@ export default async function ArticlePage({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3 shrink-0">
+      <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex flex-wrap items-center gap-3 shrink-0">
         <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900">
           Dashboard
         </Link>
@@ -49,7 +49,7 @@ export default async function ArticlePage({
           {project?.name ?? "Project"}
         </Link>
         <span className="text-gray-300">/</span>
-        <span className="text-sm font-medium text-gray-900 truncate max-w-xs">
+        <span className="text-sm font-medium text-gray-900 truncate max-w-[40vw] sm:max-w-xs">
           {article.title}
         </span>
         <div className="ml-auto">

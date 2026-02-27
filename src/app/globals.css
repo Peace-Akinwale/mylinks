@@ -12,6 +12,7 @@ body {
 }
 
 /* Prose styles for article draft preview */
+.prose { overflow-wrap: break-word; word-break: break-word; }
 .prose p { margin-bottom: 1em; }
 .prose h2 { font-size: 1.25rem; font-weight: 600; margin: 1.5em 0 0.5em; }
 .prose h3 { font-size: 1.1rem; font-weight: 600; margin: 1.25em 0 0.5em; }

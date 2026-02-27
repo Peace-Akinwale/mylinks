@@ -65,22 +65,22 @@ export default async function ProjectPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
+      <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex flex-wrap items-center gap-3">
         <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900">
           Dashboard
         </Link>
         <span className="text-gray-300">/</span>
-        <span className="text-sm font-medium text-gray-900">{project.name}</span>
+        <span className="text-sm font-medium text-gray-900 truncate max-w-[200px] sm:max-w-xs">{project.name}</span>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
             <p className="text-sm text-gray-500 mt-1">{project.domain}</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Link
               href={`/projects/${projectId}/articles/new`}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
@@ -103,7 +103,7 @@ export default async function ProjectPage({
           {/* Pages inventory */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200">
-              <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+              <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap justify-between items-center gap-2">
                 <h2 className="font-semibold text-gray-900">Page inventory</h2>
                 <Suspense fallback={<span className="text-xs text-gray-400">Loading filter...</span>}>
                   <PageTypeFilter typeCounts={typeCounts} />
@@ -120,7 +120,7 @@ export default async function ProjectPage({
                 <div className="divide-y divide-gray-100">
                   {pages.map((p) => (
                     <div key={p.id} className="px-5 py-3 flex items-center gap-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${pageTypeColor(p.page_type)}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${pageTypeColor(p.page_type)}`}>
                         {p.page_type}
                       </span>
                       <div className="flex-1 min-w-0">

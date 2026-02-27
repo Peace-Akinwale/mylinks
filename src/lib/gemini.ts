@@ -105,7 +105,7 @@ export async function getSuggestions(
   inventory: InventoryPage[]
 ): Promise<Suggestion[]> {
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.0-flash",
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema,
@@ -115,7 +115,7 @@ export async function getSuggestions(
 
   let lastError: Error | null = null;
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const prompt = buildPrompt(draft, inventory);
       const result = await model.generateContent(prompt);
@@ -160,5 +160,5 @@ export async function getSuggestions(
     }
   }
 
-  throw lastError ?? new Error("Gemini suggestion failed after 3 attempts");
+  throw lastError ?? new Error("Gemini suggestion failed after 2 attempts");
 }
