@@ -299,7 +299,7 @@ function buildHighlightedDraft(text: string, suggestions: Suggestion[]): string 
       after;
   }
 
-  return marked.parse(result) as string;
+  return marked.parse(result, { breaks: true }) as string;
 }
 
 function escapeHtml(str: string): string {

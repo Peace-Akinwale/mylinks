@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import SuggestionReview from "@/components/SuggestionReview";
+import DeleteArticleButton from "@/components/DeleteArticleButton";
 
 export default async function ArticlePage({
   params,
@@ -51,6 +52,9 @@ export default async function ArticlePage({
         <span className="text-sm font-medium text-gray-900 truncate max-w-xs">
           {article.title}
         </span>
+        <div className="ml-auto">
+          <DeleteArticleButton articleId={articleId} projectId={projectId} />
+        </div>
       </nav>
 
       <SuggestionReview
