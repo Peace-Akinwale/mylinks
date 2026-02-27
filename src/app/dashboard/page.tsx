@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import NewProjectModal from "@/components/NewProjectModal";
+import UserMenu from "@/components/UserMenu";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -17,17 +18,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex flex-wrap justify-between items-center gap-3">
         <h1 className="text-lg font-bold text-gray-900">MyLinks</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500 hidden sm:inline">{user.email}</span>
-          <Link href="/settings" className="text-sm text-gray-600 hover:text-gray-900">
-            Settings
-          </Link>
-          <form action="/api/auth/signout" method="POST">
-            <button className="text-sm text-gray-600 hover:text-gray-900">
-              Sign out
-            </button>
-          </form>
-        </div>
+        <UserMenu email={user.email} />
       </nav>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">

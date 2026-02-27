@@ -99,10 +99,8 @@ export function buildBatchUpdateRequests(
   return requests;
 }
 
+import { extractGoogleDocId } from "@/lib/utils";
+
 export function extractDocIdFromUrl(input: string): string {
-  // Handle full URL: https://docs.google.com/document/d/DOC_ID/edit
-  const match = input.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
-  if (match) return match[1];
-  // Already a doc ID
-  return input.trim();
+  return extractGoogleDocId(input);
 }

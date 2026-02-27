@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import CrawlButton from "@/components/CrawlButton";
+import EditProjectModal from "@/components/EditProjectModal";
 import PageTypeFilter from "@/components/PageTypeFilter";
 import type { PageType } from "@/lib/types/database";
 
@@ -88,6 +89,7 @@ export default async function ProjectPage({
               Add article
             </Link>
             <CrawlButton projectId={projectId} />
+            <EditProjectModal project={project} />
           </div>
         </div>
 

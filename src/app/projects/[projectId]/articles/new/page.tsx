@@ -3,6 +3,7 @@
 import { useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { extractGoogleDocId } from "@/lib/utils";
 
 export default function NewArticlePage({
   params,
@@ -27,7 +28,8 @@ export default function NewArticlePage({
 
     // If Google Doc, fetch doc content first
     if (tab === "google_doc") {
-      const docRes = await fetch(`/api/google/docs/${encodeURIComponent(docId)}`);
+      const cleanDocId = extractGoogleDocId(docId);
+      const docRes = await fetch(`/api/google/docs/${encodeURIComponent(cleanDocId)}`);
       if (!docRes.ok) {
         const d = await docRes.json();
         setError(d.error ?? "Failed to fetch Google Doc");
@@ -46,7 +48,7 @@ export default function NewArticlePage({
         title,
         source: tab,
         content_text: contentText,
-        google_doc_id: tab === "google_doc" ? docId : null,
+        google_doc_id: tab === "google_doc" ? extractGoogleDocId(docId) : null,
       }),
     });
 
@@ -152,9 +154,16 @@ export default function NewArticlePage({
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-              {error}
-            </p>
+            <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+              <p>{error}</p>
+              {error.toLowerCase().includes("google account not connected") && (
+                <p className="mt-1">
+                  <Link href="/settings" className="underline font-medium hover:text-red-800">
+                    Go to Settings to connect Google
+                  </Link>
+                </p>
+              )}
+            </div>
           )}
 
           <div className="flex gap-3">
