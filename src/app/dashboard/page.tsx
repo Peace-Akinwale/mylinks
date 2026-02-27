@@ -19,6 +19,9 @@ export default async function DashboardPage() {
         <h1 className="text-lg font-bold text-gray-900">MyLinks</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-500">{user.email}</span>
+          <Link href="/settings" className="text-sm text-gray-600 hover:text-gray-900">
+            Settings
+          </Link>
           <form action="/api/auth/signout" method="POST">
             <button className="text-sm text-gray-600 hover:text-gray-900">
               Sign out
