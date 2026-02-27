@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { refreshAccessToken } from "@/lib/google-auth";
 import { extractDocContent, buildBatchUpdateRequests } from "@/lib/google-docs";
+import { extractGoogleDocId } from "@/lib/utils";
 
 async function getValidAccessToken(userId: string): Promise<string> {
   const serviceClient = await createServiceClient();
@@ -49,6 +50,8 @@ export async function POST(
     return NextResponse.json({ error: "Article has no Google Doc" }, { status: 400 });
   }
 
+  const docId = extractGoogleDocId(article.google_doc_id);
+
   // Fetch approved suggestions
   const { data: suggestions } = await supabase
     .from("suggestions")
@@ -70,7 +73,7 @@ export async function POST(
 
   // Fetch live doc to get current indices
   const docRes = await fetch(
-    `https://docs.googleapis.com/v1/documents/${article.google_doc_id}`,
+    `https://docs.googleapis.com/v1/documents/${docId}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
@@ -100,7 +103,7 @@ export async function POST(
 
   // Apply via batchUpdate
   const updateRes = await fetch(
-    `https://docs.googleapis.com/v1/documents/${article.google_doc_id}:batchUpdate`,
+    `https://docs.googleapis.com/v1/documents/${docId}:batchUpdate`,
     {
       method: "POST",
       headers: {
