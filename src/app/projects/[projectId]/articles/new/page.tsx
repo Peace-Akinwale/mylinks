@@ -75,11 +75,11 @@ export default function NewArticlePage({
           Project
         </Link>
         <span className="text-gray-300">/</span>
-        <span className="text-sm font-medium text-gray-900">New article</span>
+        <span className="text-sm font-medium text-gray-900">Add article</span>
       </nav>
 
       <main className="max-w-2xl mx-auto px-6 py-10">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">New article</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-8">Add article</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -145,7 +145,7 @@ export default function NewArticlePage({
                 />
                 <p className="text-xs text-gray-400">
                   Make sure you&apos;ve connected Google in settings and the doc is
-                  shared with your account.
+                  shared with your account. You must have <strong>edit access</strong> to the doc — view-only links won&apos;t work.
                 </p>
               </div>
             )}
@@ -169,7 +169,7 @@ export default function NewArticlePage({
               disabled={loading}
               className="flex-1 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? "Creating..." : "Create article"}
+              {loading ? "Adding..." : "Add article"}
             </button>
           </div>
         </form>

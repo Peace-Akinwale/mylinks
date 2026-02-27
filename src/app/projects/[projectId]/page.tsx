@@ -29,7 +29,7 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   // Fetch pages
-  const limit = 50;
+  const limit = 20;
   const offset = (parseInt(page) - 1) * limit;
   let pagesQuery = supabase
     .from("pages")
@@ -85,7 +85,7 @@ export default async function ProjectPage({
               href={`/projects/${projectId}/articles/new`}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
             >
-              New article
+              Add article
             </Link>
             <CrawlButton projectId={projectId} />
           </div>

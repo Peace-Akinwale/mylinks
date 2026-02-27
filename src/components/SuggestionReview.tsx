@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { marked } from "marked";
 import type { Database } from "@/lib/types/database";
 
 type Article = Database["public"]["Tables"]["articles"]["Row"];
@@ -82,7 +83,10 @@ export default function SuggestionReview({
   const pendingCount = suggestions.filter((s) => s.status === "pending").length;
 
   // Build highlighted draft
-  const highlightedDraft = buildHighlightedDraft(article.content_text, suggestions);
+  const highlightedDraft = useMemo(
+    () => buildHighlightedDraft(article.content_text, suggestions),
+    [article.content_text, suggestions]
+  );
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -131,7 +135,7 @@ export default function SuggestionReview({
         <div className="flex-1 overflow-y-auto p-6 border-r border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">{article.title}</h2>
           <div
-            className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap"
+            className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: highlightedDraft }}
           />
         </div>
@@ -271,11 +275,7 @@ function ConfidenceBadge({ confidence }: { confidence: string }) {
 }
 
 function buildHighlightedDraft(text: string, suggestions: Suggestion[]): string {
-  if (suggestions.length === 0) {
-    return escapeHtml(text).replace(/\n/g, "<br>");
-  }
-
-  // Sort by char_start descending to apply from end to start (preserve indices)
+  // Apply suggestion highlights to plain text first, then render as markdown
   const sorted = [...suggestions]
     .filter((s) => s.char_start >= 0 && s.char_end > s.char_start)
     .sort((a, b) => b.char_start - a.char_start);
@@ -295,11 +295,11 @@ function buildHighlightedDraft(text: string, suggestions: Suggestion[]): string 
 
     result =
       before +
-      `<mark class="${colorClass} px-0.5 rounded-sm cursor-default" title="${escapeAttr(s.target_url)}">${escapeHtml(anchor)}</mark>` +
+      `<mark class="${colorClass} px-0.5 rounded-sm cursor-default" title="${escapeAttr(s.target_url)}">${anchor}</mark>` +
       after;
   }
 
-  return result.replace(/\n/g, "<br>");
+  return marked.parse(result) as string;
 }
 
 function escapeHtml(str: string): string {
