@@ -66,17 +66,35 @@ export default function SuggestionReview({
     setGenerating(true);
     setError(null);
     setActiveSuggestionId(null);
-    const res = await fetch(`/api/articles/${article.id}/suggest`, {
-      method: "POST",
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Failed to generate suggestions");
-    } else {
-      setSuggestions(data.suggestions);
-      showToast(`${data.suggestions.length} suggestions generated`);
+    try {
+      const res = await fetch(`/api/articles/${article.id}/suggest`, {
+        method: "POST",
+      });
+
+      if (res.status === 504) {
+        setError("Request timed out — please try again.");
+        return;
+      }
+
+      let data: { error?: string; suggestions?: Suggestion[] };
+      try {
+        data = await res.json();
+      } catch {
+        setError("Unexpected response from server — please try again.");
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data.error ?? "Failed to generate suggestions.");
+      } else {
+        setSuggestions(data.suggestions ?? []);
+        showToast(`${(data.suggestions ?? []).length} suggestions generated`);
+      }
+    } catch {
+      setError("Network error — please check your connection and try again.");
+    } finally {
+      setGenerating(false);
     }
-    setGenerating(false);
   }
 
   const updateStatus = useCallback(

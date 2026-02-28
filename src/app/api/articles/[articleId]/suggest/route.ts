@@ -32,7 +32,7 @@ export async function POST(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: pages } = await (supabase as any)
     .from("pages")
-    .select("url, title, h1, h2s, meta_description, page_type, priority, published_at")
+    .select("url, title, h1, page_type, priority, published_at")
     .eq("project_id", projectId)
     .or(`published_at.gte.${fourYearsAgo.toISOString()},published_at.is.null`)
     .order("priority", { ascending: false })

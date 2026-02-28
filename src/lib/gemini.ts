@@ -8,8 +8,6 @@ export interface InventoryPage {
   url: string;
   title: string | null;
   h1: string | null;
-  h2s: string[] | null;
-  meta_description: string | null;
   page_type: PageType;
   priority: number;
 }
@@ -67,22 +65,17 @@ const responseSchema: Schema = {
 
 function buildPrompt(draft: string, inventory: InventoryPage[]): string {
   const inventoryLines = inventory
-    .map((p, i) => {
-      const h2List = p.h2s?.length ? p.h2s.slice(0, 5).join(" | ") : null;
-      return [
+    .map((p, i) =>
+      [
         `${i + 1}. URL: ${p.url}`,
         `   Title: ${p.title ?? "N/A"}`,
         `   H1: ${p.h1 ?? "N/A"}`,
-        h2List ? `   H2s: ${h2List}` : null,
-        p.meta_description ? `   Description: ${p.meta_description}` : null,
         `   Type: ${p.page_type} (priority ${p.priority})`,
-      ]
-        .filter(Boolean)
-        .join("\n");
-    })
+      ].join("\n")
+    )
     .join("\n\n");
 
-  return `You are an expert SEO internal linking specialist. Your task is to suggest 3–8 high-quality internal links for the given article draft, using only URLs from the provided site inventory.
+  return `You are an expert SEO internal linking specialist. Your task is to suggest as many high-quality internal links as naturally fit the article (aim for 8–15), using only URLs from the provided site inventory. Suggest fewer only if the article genuinely lacks enough relevant anchor opportunities.
 
 ## ARTICLE DRAFT
 ${draft}
