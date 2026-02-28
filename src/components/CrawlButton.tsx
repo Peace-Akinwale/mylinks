@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface CrawlEvent {
@@ -12,11 +12,28 @@ interface CrawlEvent {
   url?: string;
 }
 
-export default function CrawlButton({ projectId }: { projectId: string }) {
+export default function CrawlButton({
+  projectId,
+  autoCrawl = false,
+}: {
+  projectId: string;
+  autoCrawl?: boolean;
+}) {
   const [crawling, setCrawling] = useState(false);
   const [progress, setProgress] = useState<{ crawled: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const didAutoStart = useRef(false);
+
+  useEffect(() => {
+    if (autoCrawl && !didAutoStart.current) {
+      didAutoStart.current = true;
+      // Remove the param from URL so refresh doesn't retrigger
+      window.history.replaceState({}, "", `/projects/${projectId}`);
+      startCrawl();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function startCrawl() {
     setCrawling(true);
@@ -80,7 +97,7 @@ export default function CrawlButton({ projectId }: { projectId: string }) {
         disabled={crawling}
         className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {crawling ? "Crawling..." : "Crawl sitemap"}
+        {crawling ? "Crawling sitemap..." : "Crawl sitemap"}
       </button>
 
       {crawling && progress && (

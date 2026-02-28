@@ -13,10 +13,11 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ page_type?: string; page?: string; per_page?: string }>;
+  searchParams: Promise<{ page_type?: string; page?: string; per_page?: string; auto_crawl?: string }>;
 }) {
   const { projectId } = await params;
-  const { page_type, page = "1", per_page = "20" } = await searchParams;
+  const { page_type, page = "1", per_page = "20", auto_crawl } = await searchParams;
+  const autoCrawl = auto_crawl === "1";
   const limit = [20, 50].includes(parseInt(per_page)) ? parseInt(per_page) : 20;
 
   const supabase = await createClient();
@@ -91,7 +92,7 @@ export default async function ProjectPage({
             >
               Add article
             </Link>
-            <CrawlButton projectId={projectId} />
+            <CrawlButton projectId={projectId} autoCrawl={autoCrawl} />
             <EditProjectModal project={project} />
           </div>
         </div>

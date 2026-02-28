@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { createClient } from "@/lib/supabase/server";
-import { parseSitemap } from "@/lib/sitemap";
+import { discoverAndParseSitemap } from "@/lib/sitemap";
 import { extractPage } from "@/lib/extract";
 import { inferPageType } from "@/lib/page-type";
 
@@ -28,8 +28,6 @@ export async function POST(
 
   if (!project) return new Response("Not found", { status: 404 });
 
-  const sitemapUrl =
-    project.sitemap_url || `https://${project.domain}/sitemap.xml`;
 
   const serviceClient = await createServiceClient();
 
@@ -53,19 +51,24 @@ export async function POST(
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        send(controller, { type: "status", message: "Fetching sitemap..." });
+        send(controller, { type: "status", message: "Discovering sitemap..." });
 
-        const urls = await parseSitemap(sitemapUrl);
+        const { urls, foundAt } = await discoverAndParseSitemap(
+          project.domain,
+          project.sitemap_url
+        );
 
         if (urls.length === 0) {
-          send(controller, { type: "error", message: "No URLs found in sitemap" });
+          send(controller, { type: "error", message: "Could not find a sitemap for this domain. Try adding the sitemap URL manually in project settings." });
           await serviceClient
             .from("crawl_logs")
-            .update({ status: "failed", error_message: "No URLs found", completed_at: new Date().toISOString() })
+            .update({ status: "failed", error_message: "No sitemap found", completed_at: new Date().toISOString() })
             .eq("id", crawlLog.id);
           controller.close();
           return;
         }
+
+        send(controller, { type: "status", message: `Found sitemap at ${foundAt}` });
 
         send(controller, { type: "total", total: urls.length });
 

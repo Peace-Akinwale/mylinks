@@ -28,17 +28,17 @@ export function inferPageType(
     return { pageType: "about", priority: 30 };
   }
 
-  // Blog post — has date or /blog/ with deep path
+  // Blog post — URL has date, or deep path under blog/news/resources/guides etc.
   if (
     /\d{4}\/\d{2}\/\d{2}/.test(pathname) ||
-    (/\/(blog|post|article|news)\//.test(pathname) && segments.length >= 2)
+    (/\/(blog|post|article|news|resource|guide|learn|insight|tip|tutorial|how-to)\//.test(pathname) && segments.length >= 2)
   ) {
     const priority = wordCount > 800 ? 80 : wordCount > 300 ? 65 : 50;
     return { pageType: "blog_post", priority };
   }
 
-  // Category — short path under blog/category/tag
-  if (/\/(blog|category|tag|topics?)\/?$/.test(pathname)) {
+  // Category — index page under blog/category/tag/resources
+  if (/\/(blog|category|tag|topics?|resources?|guides?|insights?)\/?$/.test(pathname)) {
     return { pageType: "category", priority: 60 };
   }
 
@@ -47,14 +47,19 @@ export function inferPageType(
     return { pageType: "product", priority: 70 };
   }
 
-  // Service
-  if (/\/(service|solution|feature|offering)/.test(pathname)) {
+  // Service — expanded to cover agencies, SaaS, industries, pricing pages
+  if (/\/(service|solution|feature|offering|industr|plan|package|platform|pric|consulting|agenc|marketing|seo|ppc|social|location|local)/.test(pathname)) {
     return { pageType: "service", priority: 75 };
   }
 
-  // Landing — short single-segment paths
+  // Landing — single-segment pages with content
   if (segments.length === 1 && wordCount > 200) {
     return { pageType: "landing", priority: 70 };
+  }
+
+  // Two-segment content-rich pages are likely service/landing pages (e.g. /industries/realtor/)
+  if (segments.length === 2 && wordCount > 300) {
+    return { pageType: "landing", priority: 60 };
   }
 
   // Default — score by depth and word count
