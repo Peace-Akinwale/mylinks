@@ -9,9 +9,26 @@ export default function NewProjectModal() {
   const [name, setName] = useState("");
   const [domain, setDomain] = useState("");
   const [sitemapUrl, setSitemapUrl] = useState("");
+  const [sitemapAutoFilled, setSitemapAutoFilled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  function handleDomainChange(value: string) {
+    setDomain(value);
+    const clean = normalizeDomain(value);
+    if (clean && (sitemapUrl === "" || sitemapAutoFilled)) {
+      setSitemapUrl(`https://${clean}/sitemap.xml`);
+      setSitemapAutoFilled(true);
+    } else if (!clean) {
+      if (sitemapAutoFilled) setSitemapUrl("");
+    }
+  }
+
+  function handleSitemapChange(value: string) {
+    setSitemapUrl(value);
+    setSitemapAutoFilled(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,13 +94,18 @@ export default function NewProjectModal() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Domain
                 </label>
-                <input
-                  required
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  placeholder="example.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+                  <span className="px-3 py-2 bg-gray-50 text-gray-400 text-sm border-r border-gray-300 shrink-0 select-none">
+                    https://
+                  </span>
+                  <input
+                    required
+                    value={domain}
+                    onChange={(e) => handleDomainChange(e.target.value)}
+                    placeholder="example.com"
+                    className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>
@@ -93,12 +115,12 @@ export default function NewProjectModal() {
                 </label>
                 <input
                   value={sitemapUrl}
-                  onChange={(e) => setSitemapUrl(e.target.value)}
+                  onChange={(e) => handleSitemapChange(e.target.value)}
                   placeholder="https://example.com/sitemap.xml"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Leave blank to try /sitemap.xml automatically.
+                  Auto-filled from domain — edit if your sitemap is at a different path.
                 </p>
               </div>
 

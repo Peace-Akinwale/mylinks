@@ -106,6 +106,7 @@ export async function POST(
                 priority,
                 word_count: pageData.wordCount,
                 status_code: pageData.statusCode,
+                published_at: pageData.publishedAt,
                 last_crawled_at: new Date().toISOString(),
               });
 

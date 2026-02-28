@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import CrawlButton from "@/components/CrawlButton";
 import EditProjectModal from "@/components/EditProjectModal";
 import PageTypeFilter from "@/components/PageTypeFilter";
+import PaginationControls from "@/components/PaginationControls";
 import type { PageType } from "@/lib/types/database";
 
 export default async function ProjectPage({
@@ -12,10 +13,11 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ page_type?: string; page?: string }>;
+  searchParams: Promise<{ page_type?: string; page?: string; per_page?: string }>;
 }) {
   const { projectId } = await params;
-  const { page_type, page = "1" } = await searchParams;
+  const { page_type, page = "1", per_page = "20" } = await searchParams;
+  const limit = [20, 50].includes(parseInt(per_page)) ? parseInt(per_page) : 20;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -30,8 +32,8 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   // Fetch pages
-  const limit = 20;
-  const offset = (parseInt(page) - 1) * limit;
+  const currentPage = parseInt(page);
+  const offset = (currentPage - 1) * limit;
   let pagesQuery = supabase
     .from("pages")
     .select("*", { count: "exact" })
@@ -62,6 +64,7 @@ export default async function ProjectPage({
   }, {});
 
   const totalPages = pageCount ?? 0;
+  const totalPageCount = Math.max(1, Math.ceil(totalPages / limit));
   const totalPagesInDB = Object.values(typeCounts).reduce((a, b) => a + b, 0);
 
   return (
@@ -139,10 +142,15 @@ export default async function ProjectPage({
                 </div>
               )}
 
-              {totalPages > limit && (
-                <div className="px-5 py-3 border-t border-gray-100 text-sm text-gray-500 text-center">
-                  Showing {Math.min(offset + limit, totalPages)} of {totalPages} pages
-                </div>
+              {totalPages > 0 && (
+                <Suspense fallback={null}>
+                  <PaginationControls
+                    projectId={projectId}
+                    currentPage={currentPage}
+                    totalPages={totalPageCount}
+                    perPage={limit}
+                  />
+                </Suspense>
               )}
             </div>
           </div>

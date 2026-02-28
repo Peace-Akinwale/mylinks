@@ -25,13 +25,18 @@ export async function POST(
 
   const projectId = article.project_id;
 
-  // Fetch page inventory
-  const { data: pages } = await supabase
+  // Fetch page inventory — pages published in last 4 years (or undated), ordered by priority
+  const fourYearsAgo = new Date();
+  fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: pages } = await (supabase as any)
     .from("pages")
-    .select("url, title, h1, meta_description, page_type, priority")
+    .select("url, title, h1, h2s, meta_description, page_type, priority, published_at")
     .eq("project_id", projectId)
+    .or(`published_at.gte.${fourYearsAgo.toISOString()},published_at.is.null`)
     .order("priority", { ascending: false })
-    .limit(75);
+    .limit(200) as { data: InventoryPage[] | null };
 
   if (!pages || pages.length === 0) {
     return NextResponse.json(
