@@ -32,13 +32,16 @@ export async function GET(request: NextRequest) {
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
   const serviceClient = await createServiceClient();
 
-  await serviceClient.from("google_tokens").upsert({
-    user_id: user.id,
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    expires_at: expiresAt,
-    scope: tokens.scope,
-  });
+  await serviceClient.from("google_tokens").upsert(
+    {
+      user_id: user.id,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: expiresAt,
+      scope: tokens.scope,
+    },
+    { onConflict: "user_id" }
+  );
 
   const response = NextResponse.redirect(
     `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?google_connected=1`

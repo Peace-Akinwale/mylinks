@@ -9,6 +9,8 @@ async function getValidAccessToken(userId: string): Promise<string> {
     .from("google_tokens")
     .select("*")
     .eq("user_id", userId)
+    .order("expires_at", { ascending: false })
+    .limit(1)
     .single();
 
   if (!tokenRow) throw new Error("Google account not connected");
