@@ -194,27 +194,27 @@ export async function getSuggestions(
 }
 
 function buildExternalPrompt(draft: string): string {
-  return `You are an expert SEO specialist. Your task is to suggest high-authority EXTERNAL links for an article. These are outbound links to reputable, authoritative sources that add credibility and value for readers.
+  return `You are an expert SEO specialist. Your task is to suggest relevant EXTERNAL links for an article. These are outbound links to reputable third-party sources that add value for readers — tools, studies, industry blogs, well-known companies, or any credible site directly relevant to the content.
 
 ## ARTICLE DRAFT
 ${draft}
 
 ## INSTRUCTIONS
 For each suggestion:
-1. Find a phrase in the draft that would benefit from an authoritative external citation — the phrase must appear verbatim in the draft.
-2. Suggest a real, well-known authority URL (e.g. Wikipedia, .gov sites, major publications, research papers, industry-leading sites, official documentation).
+1. Find a phrase in the draft that would benefit from an external link — the phrase must appear verbatim in the draft.
+2. Suggest a real, relevant external URL that the reader would genuinely find useful (e.g. the homepage of a tool mentioned, a study backing a claim, a well-known industry blog post, a company site referenced in the article).
 3. Provide exact character positions (char_start, char_end) within the full draft string (0-indexed). The substring draft[char_start:char_end] MUST equal the anchor_text exactly.
 4. Provide paragraph_index (0-based) and sentence_index (0-based within paragraph) for context.
 5. Score relevance_score from 0.0 to 1.0 (only suggest if >= 0.7).
-6. Set confidence: "high" if the source is the definitive authority, "medium" if it's a strong source, "low" if it's a reasonable reference.
-7. justification: 1–2 sentences explaining WHY this external link adds authority or value.
+6. Set confidence: "high" if it's the obvious best source, "medium" if it's a strong fit, "low" if it's a reasonable option.
+7. justification: 1–2 sentences explaining WHY this external link adds value for the reader.
 
 ## RULES
-- Only suggest URLs from genuinely authoritative, well-known sources (Wikipedia, .gov, .edu, major publications like HBR/Forbes/NYT, official documentation, research journals).
-- Do NOT suggest links to random blogs, small sites, or anything that isn't clearly authoritative.
+- Prioritise relevance over domain authority — a niche tool's homepage beats a generic Wikipedia article.
+- Only suggest real, working URLs for sites that actually exist.
 - NEVER use headings (H1, H2, H3, H4) as anchor text. Pick anchor text from body paragraphs only.
 - Never suggest the same URL twice.
-- Aim for 3–8 external links depending on article length and how many opportunities naturally exist.
+- Aim for 3–8 external links depending on how many natural opportunities exist.
 - Only use anchor text that exists verbatim in the draft.
 - Do not suggest links if relevance_score < 0.7.
 

@@ -278,7 +278,7 @@ export default function SuggestionReview({
                   : "bg-white text-gray-600 hover:bg-gray-50"
               }`}
             >
-              Authority{externalCount > 0 ? ` (${externalCount})` : ""}
+              External{externalCount > 0 ? ` (${externalCount})` : ""}
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -324,7 +324,7 @@ export default function SuggestionReview({
               disabled={generatingExternal}
               className="px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
             >
-              {generatingExternal ? "Generating..." : externalCount > 0 ? "Regenerate authority" : "Find authority links"}
+              {generatingExternal ? "Generating..." : externalCount > 0 ? "Regenerate external" : "Find external links"}
             </button>
           )}
         </div>
@@ -388,7 +388,7 @@ export default function SuggestionReview({
                   ? "Analyzing your article..."
                   : linkTab === "internal"
                     ? "No internal links yet. Click \"Generate internal links\" to start."
-                    : "No authority links yet. Click \"Find authority links\" to discover external sources."}
+                    : "No external links yet. Click \"Find external links\" to start."}
               </div>
             ) : (
               filteredSuggestions.map((s) => (
