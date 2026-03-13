@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { marked } from "marked";
 import type { Database } from "@/lib/types/database";
@@ -29,8 +29,10 @@ export default function SuggestionReview({
   const [showLinkDoc, setShowLinkDoc] = useState(false);
   const [docUrl, setDocUrl] = useState("");
   const [linking, setLinking] = useState(false);
+  const [cardPositions, setCardPositions] = useState<Record<string, number>>({});
   const articlePanelRef = useRef<HTMLDivElement>(null);
   const suggestionsPanelRef = useRef<HTMLDivElement>(null);
+  const cardRefsMap = useRef<Record<string, HTMLDivElement | null>>({});
   const router = useRouter();
 
   function showToast(msg: string) {
@@ -62,21 +64,12 @@ export default function SuggestionReview({
   function scrollToSuggestion(id: string) {
     setActiveSuggestionId(id);
 
-    // Scroll article to the highlighted anchor text
+    // Scroll to the highlighted anchor text — both panels scroll together
     const articlePanel = articlePanelRef.current;
     if (articlePanel) {
       const mark = articlePanel.querySelector(`[data-suggestion-id="${id}"]`);
       if (mark) {
         mark.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
-
-    // Scroll right panel so the card + its Approve button are visible
-    const suggestionsPanel = suggestionsPanelRef.current;
-    if (suggestionsPanel) {
-      const card = suggestionsPanel.querySelector(`[data-card-id="${id}"]`);
-      if (card) {
-        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
     }
   }
@@ -166,6 +159,47 @@ export default function SuggestionReview({
     [article.content_text, suggestions, activeSuggestionId]
   );
 
+  // Compute card positions aligned to their anchor marks
+  useEffect(() => {
+    const articlePanel = articlePanelRef.current;
+    if (!articlePanel || suggestions.length === 0) return;
+
+    const compute = () => {
+      const panelRect = articlePanel.getBoundingClientRect();
+      const GAP = 8;
+
+      // Get ideal Y for each suggestion based on its mark position
+      const items: { id: string; idealY: number }[] = [];
+      for (const s of suggestions) {
+        const mark = articlePanel.querySelector(`[data-suggestion-id="${s.id}"]`);
+        if (mark) {
+          const markRect = mark.getBoundingClientRect();
+          items.push({ id: s.id, idealY: markRect.top - panelRect.top });
+        }
+      }
+
+      // Sort by ideal Y position
+      items.sort((a, b) => a.idealY - b.idealY);
+
+      // Resolve overlaps: push cards down if they'd overlap the previous one
+      const positions: Record<string, number> = {};
+      let lastBottom = 0;
+      for (const item of items) {
+        const cardEl = cardRefsMap.current[item.id];
+        const cardHeight = cardEl?.offsetHeight ?? 120;
+        const y = Math.max(item.idealY, lastBottom);
+        positions[item.id] = y;
+        lastBottom = y + cardHeight + GAP;
+      }
+
+      setCardPositions(positions);
+    };
+
+    // Run after DOM paint
+    const frame = requestAnimationFrame(compute);
+    return () => cancelAnimationFrame(frame);
+  }, [suggestions, activeSuggestionId, highlightedDraft]);
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Toolbar */}
@@ -238,40 +272,52 @@ export default function SuggestionReview({
         </div>
       )}
 
-      {/* Split view */}
-      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
-        {/* Left: Draft */}
-        <div
-          ref={articlePanelRef}
-          onClick={handleArticleClick}
-          className="flex-1 min-h-[40vh] overflow-y-auto p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-gray-200"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">{article.title}</h2>
+      {/* Split view — single scroll container */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex flex-col sm:flex-row min-h-full">
+          {/* Left: Draft */}
           <div
-            className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: highlightedDraft }}
-          />
-        </div>
+            ref={articlePanelRef}
+            onClick={handleArticleClick}
+            className="flex-1 p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-gray-200"
+          >
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">{article.title}</h2>
+            <div
+              className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: highlightedDraft }}
+            />
+          </div>
 
-        {/* Right: Suggestions */}
-        <div ref={suggestionsPanelRef} className="w-full sm:w-72 md:w-80 lg:w-96 shrink-0 overflow-y-auto p-3 space-y-2 bg-gray-50">
-          {suggestions.length === 0 ? (
-            <div className="text-center py-16 text-sm text-gray-400">
-              {generating
-                ? "Analyzing your article..."
-                : "No suggestions yet. Click \"Generate suggestions\" to start."}
-            </div>
-          ) : (
-            suggestions.map((s) => (
-              <SuggestionCard
-                key={s.id}
-                suggestion={s}
-                isActive={s.id === activeSuggestionId}
-                onStatusChange={updateStatus}
-                onSelect={scrollToSuggestion}
-              />
-            ))
-          )}
+          {/* Right: Suggestions — positioned alongside anchors */}
+          <div
+            ref={suggestionsPanelRef}
+            className="w-full sm:w-72 md:w-80 lg:w-96 shrink-0 bg-gray-50 relative"
+            style={{ minHeight: suggestions.length > 0 ? Object.values(cardPositions).reduce((max, y) => Math.max(max, y + 200), 0) : undefined }}
+          >
+            {suggestions.length === 0 ? (
+              <div className="text-center py-16 text-sm text-gray-400">
+                {generating
+                  ? "Analyzing your article..."
+                  : "No suggestions yet. Click \"Generate suggestions\" to start."}
+              </div>
+            ) : (
+              suggestions.map((s) => (
+                <div
+                  key={s.id}
+                  ref={(el) => { cardRefsMap.current[s.id] = el; }}
+                  className="absolute left-0 right-0 px-3 transition-[top] duration-200"
+                  style={{ top: cardPositions[s.id] ?? 0 }}
+                >
+                  <SuggestionCard
+                    suggestion={s}
+                    isActive={s.id === activeSuggestionId}
+                    onStatusChange={updateStatus}
+                    onSelect={scrollToSuggestion}
+                  />
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
