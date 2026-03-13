@@ -37,13 +37,17 @@ export async function GET(
   const { docId: rawDocId } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) {
+    console.error("[google-docs] No Supabase user in request");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   let accessToken: string;
   try {
     accessToken = await getValidAccessToken(user.id);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Auth error";
+    console.error("[google-docs] Token error for user", user.id, ":", message);
     return NextResponse.json({ error: message }, { status: 401 });
   }
 

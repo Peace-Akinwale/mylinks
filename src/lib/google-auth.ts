@@ -64,7 +64,9 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
   });
 
   if (!res.ok) {
-    throw new Error("Token refresh failed");
+    const body = await res.text();
+    console.error("[google-auth] refresh failed:", res.status, body);
+    throw new Error(`Token refresh failed: ${res.status} ${body}`);
   }
 
   return res.json();
