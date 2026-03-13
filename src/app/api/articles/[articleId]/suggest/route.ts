@@ -63,9 +63,9 @@ export async function POST(
   // Build page url → page record map for type lookup
   const pageMap = new Map(pages.map((p) => [p.url, p]));
 
-  // Delete existing suggestions for this article before inserting new ones
+  // Delete existing internal suggestions for this article before inserting new ones
   const serviceClient = await createServiceClient();
-  await serviceClient.from("suggestions").delete().eq("article_id", articleId);
+  await serviceClient.from("suggestions").delete().eq("article_id", articleId).eq("link_type", "internal");
 
   const toInsert = rawSuggestions.map((s, i) => {
     const targetPage = pageMap.get(s.target_url);
@@ -87,6 +87,7 @@ export async function POST(
       over_optimization_flag: false,
       status: "pending" as const,
       sort_order: i,
+      link_type: "internal" as const,
     };
   });
 

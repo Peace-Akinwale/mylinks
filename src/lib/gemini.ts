@@ -96,11 +96,38 @@ For each suggestion:
 ## RULES
 - Never suggest the same URL twice (no duplicates).
 - Never link to the article's own URL.
+- NEVER use headings (H1, H2, H3, H4) as anchor text. Headings are lines that start with "#", "##", "###", or are short standalone title-like lines (e.g. all caps, numbered section titles like "1. Do X", "What You Need to Know"). Always pick anchor text from body paragraphs, not section headings.
 - Prefer high-priority pages (blog_post, service, product, landing) over low-priority ones.
 - Only use anchor text that exists verbatim in the draft.
 - Do not suggest links if relevance_score < 0.6.
 
 Return JSON matching the schema.`;
+}
+
+/** Check if a character position falls on a heading-like line */
+function isHeadingLine(text: string, charPos: number): boolean {
+  // Find the start of the line containing charPos
+  const lineStart = text.lastIndexOf("\n", charPos - 1) + 1;
+  const lineEnd = text.indexOf("\n", charPos);
+  const line = text.slice(lineStart, lineEnd === -1 ? undefined : lineEnd).trim();
+
+  // Markdown headings
+  if (/^#{1,4}\s/.test(line)) return true;
+
+  // Short standalone title-like lines (numbered sections, all-caps, etc.)
+  if (
+    line.length < 100 &&
+    line.length > 0 &&
+    (
+      /^\d+\.\s+[A-Z]/.test(line) || // "1. Section Title"
+      line === line.toUpperCase()     // "ALL CAPS HEADING"
+    ) &&
+    !line.includes(". ") // exclude normal sentences with periods mid-line
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 export async function getSuggestions(
@@ -132,21 +159,21 @@ export async function getSuggestions(
       // Post-validate: verify anchor_text matches draft at char positions
       const validated: Suggestion[] = [];
       for (const s of parsed.suggestions) {
-        const slice = draft.slice(s.char_start, s.char_end);
-        if (slice === s.anchor_text) {
-          validated.push(s);
-        } else {
+        let start = s.char_start;
+        let end = s.char_end;
+        const slice = draft.slice(start, end);
+        if (slice !== s.anchor_text) {
           // Try to auto-correct by searching for anchor_text
           const idx = draft.indexOf(s.anchor_text);
-          if (idx !== -1) {
-            validated.push({
-              ...s,
-              char_start: idx,
-              char_end: idx + s.anchor_text.length,
-            });
-          }
-          // If not found at all, drop this suggestion
+          if (idx === -1) continue; // Not found, drop
+          start = idx;
+          end = idx + s.anchor_text.length;
         }
+
+        // Skip if anchor text is inside a heading line
+        if (isHeadingLine(draft, start)) continue;
+
+        validated.push({ ...s, char_start: start, char_end: end });
       }
 
       // Deduplicate by target_url
@@ -164,4 +191,87 @@ export async function getSuggestions(
   }
 
   throw lastError ?? new Error("Gemini suggestion failed after 2 attempts");
+}
+
+function buildExternalPrompt(draft: string): string {
+  return `You are an expert SEO specialist. Your task is to suggest high-authority EXTERNAL links for an article. These are outbound links to reputable, authoritative sources that add credibility and value for readers.
+
+## ARTICLE DRAFT
+${draft}
+
+## INSTRUCTIONS
+For each suggestion:
+1. Find a phrase in the draft that would benefit from an authoritative external citation — the phrase must appear verbatim in the draft.
+2. Suggest a real, well-known authority URL (e.g. Wikipedia, .gov sites, major publications, research papers, industry-leading sites, official documentation).
+3. Provide exact character positions (char_start, char_end) within the full draft string (0-indexed). The substring draft[char_start:char_end] MUST equal the anchor_text exactly.
+4. Provide paragraph_index (0-based) and sentence_index (0-based within paragraph) for context.
+5. Score relevance_score from 0.0 to 1.0 (only suggest if >= 0.7).
+6. Set confidence: "high" if the source is the definitive authority, "medium" if it's a strong source, "low" if it's a reasonable reference.
+7. justification: 1–2 sentences explaining WHY this external link adds authority or value.
+
+## RULES
+- Only suggest URLs from genuinely authoritative, well-known sources (Wikipedia, .gov, .edu, major publications like HBR/Forbes/NYT, official documentation, research journals).
+- Do NOT suggest links to random blogs, small sites, or anything that isn't clearly authoritative.
+- NEVER use headings (H1, H2, H3, H4) as anchor text. Pick anchor text from body paragraphs only.
+- Never suggest the same URL twice.
+- Aim for 3–8 external links depending on article length and how many opportunities naturally exist.
+- Only use anchor text that exists verbatim in the draft.
+- Do not suggest links if relevance_score < 0.7.
+
+Return JSON matching the schema.`;
+}
+
+export async function getExternalSuggestions(
+  draft: string
+): Promise<Suggestion[]> {
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+      temperature: 0.3,
+    },
+  });
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const prompt = buildExternalPrompt(draft);
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+
+      const raw = JSON.parse(text);
+      const parsed = z
+        .object({ suggestions: z.array(SuggestionSchema) })
+        .parse(raw);
+
+      const validated: Suggestion[] = [];
+      for (const s of parsed.suggestions) {
+        let start = s.char_start;
+        let end = s.char_end;
+        const slice = draft.slice(start, end);
+        if (slice !== s.anchor_text) {
+          const idx = draft.indexOf(s.anchor_text);
+          if (idx === -1) continue;
+          start = idx;
+          end = idx + s.anchor_text.length;
+        }
+        if (isHeadingLine(draft, start)) continue;
+        validated.push({ ...s, char_start: start, char_end: end });
+      }
+
+      const seen = new Set<string>();
+      return validated.filter((s) => {
+        if (seen.has(s.target_url)) return false;
+        seen.add(s.target_url);
+        return true;
+      });
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+
+  throw lastError ?? new Error("External suggestions failed after 2 attempts");
 }

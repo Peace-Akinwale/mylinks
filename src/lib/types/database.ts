@@ -149,6 +149,7 @@ export type Database = {
           gdoc_start_index: number | null;
           gdoc_end_index: number | null;
           sort_order: number;
+          link_type: "internal" | "external";
           created_at: string;
         };
         Insert: {
@@ -172,6 +173,7 @@ export type Database = {
           gdoc_start_index?: number | null;
           gdoc_end_index?: number | null;
           sort_order?: number;
+          link_type?: "internal" | "external";
           created_at?: string;
         };
         Update: {
@@ -195,6 +197,7 @@ export type Database = {
           gdoc_start_index?: number | null;
           gdoc_end_index?: number | null;
           sort_order?: number;
+          link_type?: "internal" | "external";
           created_at?: string;
         };
         Relationships: [];

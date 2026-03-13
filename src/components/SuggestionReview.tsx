@@ -21,7 +21,9 @@ export default function SuggestionReview({
   projectId,
 }: Props) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>(initialSuggestions);
+  const [linkTab, setLinkTab] = useState<"internal" | "external">("internal");
   const [generating, setGenerating] = useState(false);
+  const [generatingExternal, setGeneratingExternal] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -107,13 +109,58 @@ export default function SuggestionReview({
       if (!res.ok) {
         setError(data.error ?? "Failed to generate suggestions.");
       } else {
-        setSuggestions(data.suggestions ?? []);
-        showToast(`${(data.suggestions ?? []).length} suggestions generated`);
+        const newInternal = data.suggestions ?? [];
+        // Merge: keep existing external, replace internal
+        setSuggestions((prev) => [
+          ...prev.filter((s) => s.link_type === "external"),
+          ...newInternal,
+        ]);
+        showToast(`${newInternal.length} internal links suggested`);
       }
     } catch {
       setError("Network error — please check your connection and try again.");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function generateExternalSuggestions() {
+    setGeneratingExternal(true);
+    setError(null);
+    setActiveSuggestionId(null);
+    try {
+      const res = await fetch(`/api/articles/${article.id}/suggest-external`, {
+        method: "POST",
+      });
+
+      if (res.status === 504) {
+        setError("Request timed out — please try again.");
+        return;
+      }
+
+      let data: { error?: string; suggestions?: Suggestion[] };
+      try {
+        data = await res.json();
+      } catch {
+        setError("Unexpected response from server — please try again.");
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data.error ?? "Failed to generate external suggestions.");
+      } else {
+        const newExternal = data.suggestions ?? [];
+        // Merge: keep existing internal, replace external
+        setSuggestions((prev) => [
+          ...prev.filter((s) => (s.link_type ?? "internal") !== "external"),
+          ...newExternal,
+        ]);
+        showToast(`${newExternal.length} external links suggested`);
+      }
+    } catch {
+      setError("Network error — please check your connection and try again.");
+    } finally {
+      setGeneratingExternal(false);
     }
   }
 
@@ -151,18 +198,24 @@ export default function SuggestionReview({
     setApplying(false);
   }
 
-  const approvedCount = suggestions.filter((s) => s.status === "approved").length;
-  const pendingCount = suggestions.filter((s) => s.status === "pending").length;
+  const filteredSuggestions = useMemo(
+    () => suggestions.filter((s) => (s.link_type ?? "internal") === linkTab),
+    [suggestions, linkTab]
+  );
+  const approvedCount = filteredSuggestions.filter((s) => s.status === "approved").length;
+  const pendingCount = filteredSuggestions.filter((s) => s.status === "pending").length;
+  const internalCount = suggestions.filter((s) => (s.link_type ?? "internal") === "internal").length;
+  const externalCount = suggestions.filter((s) => s.link_type === "external").length;
 
   const highlightedDraft = useMemo(
-    () => buildHighlightedDraft(article.content_text, suggestions, activeSuggestionId),
-    [article.content_text, suggestions, activeSuggestionId]
+    () => buildHighlightedDraft(article.content_text, filteredSuggestions, activeSuggestionId),
+    [article.content_text, filteredSuggestions, activeSuggestionId]
   );
 
   // Compute card positions aligned to their anchor marks
   useEffect(() => {
     const articlePanel = articlePanelRef.current;
-    if (!articlePanel || suggestions.length === 0) return;
+    if (!articlePanel || filteredSuggestions.length === 0) return;
 
     const compute = () => {
       const panelRect = articlePanel.getBoundingClientRect();
@@ -170,7 +223,7 @@ export default function SuggestionReview({
 
       // Get ideal Y for each suggestion based on its mark position
       const items: { id: string; idealY: number }[] = [];
-      for (const s of suggestions) {
+      for (const s of filteredSuggestions) {
         const mark = articlePanel.querySelector(`[data-suggestion-id="${s.id}"]`);
         if (mark) {
           const markRect = mark.getBoundingClientRect();
@@ -198,22 +251,47 @@ export default function SuggestionReview({
     // Run after DOM paint
     const frame = requestAnimationFrame(compute);
     return () => cancelAnimationFrame(frame);
-  }, [suggestions, activeSuggestionId, highlightedDraft]);
+  }, [filteredSuggestions, activeSuggestionId, highlightedDraft]);
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-3 shrink-0">
-        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-          <span>
-            <strong className="text-gray-900">{suggestions.length}</strong> suggestions
-          </span>
-          <span className="text-green-600">
-            <strong>{approvedCount}</strong> approved
-          </span>
-          <span className="text-yellow-600">
-            <strong>{pendingCount}</strong> pending
-          </span>
+        <div className="flex items-center gap-4">
+          {/* Link type tabs */}
+          <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => { setLinkTab("internal"); setActiveSuggestionId(null); }}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${
+                linkTab === "internal"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Internal{internalCount > 0 ? ` (${internalCount})` : ""}
+            </button>
+            <button
+              onClick={() => { setLinkTab("external"); setActiveSuggestionId(null); }}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${
+                linkTab === "external"
+                  ? "bg-purple-600 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Authority{externalCount > 0 ? ` (${externalCount})` : ""}
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+            <span>
+              <strong className="text-gray-900">{filteredSuggestions.length}</strong> suggestions
+            </span>
+            <span className="text-green-600">
+              <strong>{approvedCount}</strong> approved
+            </span>
+            <span className="text-yellow-600">
+              <strong>{pendingCount}</strong> pending
+            </span>
+          </div>
         </div>
         <div className="flex flex-wrap gap-3">
           {article.google_doc_id ? (
@@ -232,13 +310,23 @@ export default function SuggestionReview({
               Link Google Doc
             </button>
           )}
-          <button
-            onClick={generateSuggestions}
-            disabled={generating}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {generating ? "Generating..." : suggestions.length > 0 ? "Regenerate" : "Generate suggestions"}
-          </button>
+          {linkTab === "internal" ? (
+            <button
+              onClick={generateSuggestions}
+              disabled={generating}
+              className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {generating ? "Generating..." : internalCount > 0 ? "Regenerate internal" : "Generate internal links"}
+            </button>
+          ) : (
+            <button
+              onClick={generateExternalSuggestions}
+              disabled={generatingExternal}
+              className="px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            >
+              {generatingExternal ? "Generating..." : externalCount > 0 ? "Regenerate authority" : "Find authority links"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -292,16 +380,18 @@ export default function SuggestionReview({
           <div
             ref={suggestionsPanelRef}
             className="w-full sm:w-72 md:w-80 lg:w-96 shrink-0 bg-gray-50 relative"
-            style={{ minHeight: suggestions.length > 0 ? Object.values(cardPositions).reduce((max, y) => Math.max(max, y + 200), 0) : undefined }}
+            style={{ minHeight: filteredSuggestions.length > 0 ? Object.values(cardPositions).reduce((max, y) => Math.max(max, y + 200), 0) : undefined }}
           >
-            {suggestions.length === 0 ? (
+            {filteredSuggestions.length === 0 ? (
               <div className="text-center py-16 text-sm text-gray-400">
-                {generating
+                {(generating || generatingExternal)
                   ? "Analyzing your article..."
-                  : "No suggestions yet. Click \"Generate suggestions\" to start."}
+                  : linkTab === "internal"
+                    ? "No internal links yet. Click \"Generate internal links\" to start."
+                    : "No authority links yet. Click \"Find authority links\" to discover external sources."}
               </div>
             ) : (
-              suggestions.map((s) => (
+              filteredSuggestions.map((s) => (
                 <div
                   key={s.id}
                   ref={(el) => { cardRefsMap.current[s.id] = el; }}
@@ -311,6 +401,7 @@ export default function SuggestionReview({
                   <SuggestionCard
                     suggestion={s}
                     isActive={s.id === activeSuggestionId}
+                    isExternal={linkTab === "external"}
                     onStatusChange={updateStatus}
                     onSelect={scrollToSuggestion}
                   />
@@ -334,11 +425,13 @@ export default function SuggestionReview({
 function SuggestionCard({
   suggestion: s,
   isActive,
+  isExternal,
   onStatusChange,
   onSelect,
 }: {
   suggestion: Suggestion;
   isActive: boolean;
+  isExternal?: boolean;
   onStatusChange: (id: string, status: "approved" | "rejected" | "pending") => void;
   onSelect: (id: string) => void;
 }) {
@@ -370,7 +463,7 @@ function SuggestionCard({
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="text-xs text-blue-600 hover:underline truncate block"
+        className={`text-xs hover:underline truncate block ${isExternal ? "text-purple-600" : "text-blue-600"}`}
       >
         {s.target_url}
       </a>
