@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { marked } from "marked";
 import type { Database } from "@/lib/types/database";
+import { extractGoogleDocId } from "@/lib/utils";
 
 type Article = Database["public"]["Tables"]["articles"]["Row"];
 type Suggestion = Database["public"]["Tables"]["suggestions"]["Row"];
@@ -24,12 +26,37 @@ export default function SuggestionReview({
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null);
+  const [showLinkDoc, setShowLinkDoc] = useState(false);
+  const [docUrl, setDocUrl] = useState("");
+  const [linking, setLinking] = useState(false);
   const articlePanelRef = useRef<HTMLDivElement>(null);
   const suggestionsPanelRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  }
+
+  async function linkGoogleDoc() {
+    setLinking(true);
+    setError(null);
+    const docId = extractGoogleDocId(docUrl);
+    const res = await fetch(`/api/articles/${article.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ google_doc_id: docId }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error ?? "Failed to link Google Doc");
+    } else {
+      showToast("Google Doc linked — you can now apply suggestions to it");
+      setShowLinkDoc(false);
+      setDocUrl("");
+      router.refresh();
+    }
+    setLinking(false);
   }
 
   function scrollToSuggestion(id: string) {
@@ -155,13 +182,20 @@ export default function SuggestionReview({
           </span>
         </div>
         <div className="flex flex-wrap gap-3">
-          {article.source === "google_doc" && article.google_doc_id && (
+          {article.google_doc_id ? (
             <button
               onClick={applyToGoogleDoc}
               disabled={applying || approvedCount === 0}
               className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50"
             >
               {applying ? "Applying..." : `Apply ${approvedCount} to Google Doc`}
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowLinkDoc(!showLinkDoc)}
+              className="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              Link Google Doc
             </button>
           )}
           <button
@@ -177,6 +211,30 @@ export default function SuggestionReview({
       {error && (
         <div className="bg-red-50 border-b border-red-200 px-6 py-3 text-sm text-red-600">
           {error}
+        </div>
+      )}
+
+      {showLinkDoc && (
+        <div className="bg-gray-50 border-b border-gray-200 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3">
+          <input
+            value={docUrl}
+            onChange={(e) => setDocUrl(e.target.value)}
+            placeholder="Paste Google Doc URL or ID"
+            className="flex-1 min-w-[200px] px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={linkGoogleDoc}
+            disabled={linking || !docUrl.trim()}
+            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {linking ? "Linking..." : "Link"}
+          </button>
+          <button
+            onClick={() => { setShowLinkDoc(false); setDocUrl(""); }}
+            className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+          >
+            Cancel
+          </button>
         </div>
       )}
 
