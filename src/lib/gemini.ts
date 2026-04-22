@@ -27,6 +27,48 @@ export const SuggestionSchema = z.object({
 
 export type Suggestion = z.infer<typeof SuggestionSchema>;
 
+const MODEL_FALLBACK_CHAIN = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+] as const;
+
+function isRetryableError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    /\b(503|429|500|502|504)\b/.test(msg) ||
+    /Service Unavailable|overloaded|high demand|rate limit|ECONNRESET|ETIMEDOUT|fetch failed/i.test(msg)
+  );
+}
+
+async function generateWithFallback(
+  prompt: string,
+  generationConfig: Record<string, unknown>
+): Promise<string> {
+  const maxAttemptsPerModel = 2;
+  let lastError: Error | null = null;
+
+  for (let modelIdx = 0; modelIdx < MODEL_FALLBACK_CHAIN.length; modelIdx++) {
+    const modelName = MODEL_FALLBACK_CHAIN[modelIdx];
+    const model = genAI.getGenerativeModel({ model: modelName, generationConfig });
+
+    for (let attempt = 0; attempt < maxAttemptsPerModel; attempt++) {
+      try {
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (!isRetryableError(err)) throw lastError;
+        const globalAttempt = modelIdx * maxAttemptsPerModel + attempt;
+        const backoffMs = Math.min(2000 * 2 ** globalAttempt, 16000);
+        await new Promise((r) => setTimeout(r, backoffMs));
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Gemini generation failed across all fallback models");
+}
+
 const responseSchema: Schema = {
   type: SchemaType.OBJECT,
   properties: {
@@ -134,63 +176,39 @@ export async function getSuggestions(
   draft: string,
   inventory: InventoryPage[]
 ): Promise<Suggestion[]> {
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema,
-      temperature: 0.2,
-    },
+  const prompt = buildPrompt(draft, inventory);
+  const text = await generateWithFallback(prompt, {
+    responseMimeType: "application/json",
+    responseSchema,
+    temperature: 0.2,
   });
 
-  let lastError: Error | null = null;
+  const raw = JSON.parse(text);
+  const parsed = z
+    .object({ suggestions: z.array(SuggestionSchema) })
+    .parse(raw);
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const prompt = buildPrompt(draft, inventory);
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-
-      const raw = JSON.parse(text);
-      const parsed = z
-        .object({ suggestions: z.array(SuggestionSchema) })
-        .parse(raw);
-
-      // Post-validate: verify anchor_text matches draft at char positions
-      const validated: Suggestion[] = [];
-      for (const s of parsed.suggestions) {
-        let start = s.char_start;
-        let end = s.char_end;
-        const slice = draft.slice(start, end);
-        if (slice !== s.anchor_text) {
-          // Try to auto-correct by searching for anchor_text
-          const idx = draft.indexOf(s.anchor_text);
-          if (idx === -1) continue; // Not found, drop
-          start = idx;
-          end = idx + s.anchor_text.length;
-        }
-
-        // Skip if anchor text is inside a heading line
-        if (isHeadingLine(draft, start)) continue;
-
-        validated.push({ ...s, char_start: start, char_end: end });
-      }
-
-      // Deduplicate by target_url
-      const seen = new Set<string>();
-      return validated.filter((s) => {
-        if (seen.has(s.target_url)) return false;
-        seen.add(s.target_url);
-        return true;
-      });
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      // Brief backoff before retry
-      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+  const validated: Suggestion[] = [];
+  for (const s of parsed.suggestions) {
+    let start = s.char_start;
+    let end = s.char_end;
+    const slice = draft.slice(start, end);
+    if (slice !== s.anchor_text) {
+      const idx = draft.indexOf(s.anchor_text);
+      if (idx === -1) continue;
+      start = idx;
+      end = idx + s.anchor_text.length;
     }
+    if (isHeadingLine(draft, start)) continue;
+    validated.push({ ...s, char_start: start, char_end: end });
   }
 
-  throw lastError ?? new Error("Gemini suggestion failed after 2 attempts");
+  const seen = new Set<string>();
+  return validated.filter((s) => {
+    if (seen.has(s.target_url)) return false;
+    seen.add(s.target_url);
+    return true;
+  });
 }
 
 function buildExternalPrompt(draft: string): string {
@@ -224,54 +242,37 @@ Return JSON matching the schema.`;
 export async function getExternalSuggestions(
   draft: string
 ): Promise<Suggestion[]> {
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema,
-      temperature: 0.3,
-    },
+  const prompt = buildExternalPrompt(draft);
+  const text = await generateWithFallback(prompt, {
+    responseMimeType: "application/json",
+    responseSchema,
+    temperature: 0.3,
   });
 
-  let lastError: Error | null = null;
+  const raw = JSON.parse(text);
+  const parsed = z
+    .object({ suggestions: z.array(SuggestionSchema) })
+    .parse(raw);
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const prompt = buildExternalPrompt(draft);
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-
-      const raw = JSON.parse(text);
-      const parsed = z
-        .object({ suggestions: z.array(SuggestionSchema) })
-        .parse(raw);
-
-      const validated: Suggestion[] = [];
-      for (const s of parsed.suggestions) {
-        let start = s.char_start;
-        let end = s.char_end;
-        const slice = draft.slice(start, end);
-        if (slice !== s.anchor_text) {
-          const idx = draft.indexOf(s.anchor_text);
-          if (idx === -1) continue;
-          start = idx;
-          end = idx + s.anchor_text.length;
-        }
-        if (isHeadingLine(draft, start)) continue;
-        validated.push({ ...s, char_start: start, char_end: end });
-      }
-
-      const seen = new Set<string>();
-      return validated.filter((s) => {
-        if (seen.has(s.target_url)) return false;
-        seen.add(s.target_url);
-        return true;
-      });
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+  const validated: Suggestion[] = [];
+  for (const s of parsed.suggestions) {
+    let start = s.char_start;
+    let end = s.char_end;
+    const slice = draft.slice(start, end);
+    if (slice !== s.anchor_text) {
+      const idx = draft.indexOf(s.anchor_text);
+      if (idx === -1) continue;
+      start = idx;
+      end = idx + s.anchor_text.length;
     }
+    if (isHeadingLine(draft, start)) continue;
+    validated.push({ ...s, char_start: start, char_end: end });
   }
 
-  throw lastError ?? new Error("External suggestions failed after 2 attempts");
+  const seen = new Set<string>();
+  return validated.filter((s) => {
+    if (seen.has(s.target_url)) return false;
+    seen.add(s.target_url);
+    return true;
+  });
 }
